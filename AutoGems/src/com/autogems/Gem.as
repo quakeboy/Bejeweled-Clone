@@ -17,7 +17,10 @@ package com.autogems
 		private var tween:Tween;
 		
 		public static const GEM_TOUCHED:String = "GemTouched";
-
+		
+		public static const DISAPPEAR_DELAY:Number = 0.5;
+		public static const MOVE_DELAY:Number = 0.5;
+		
 		private function randomNumber(min:Number, max:Number):Number 
 		{
 			return Math.floor(Math.random() * (1 + max - min) + min);
@@ -26,8 +29,8 @@ package com.autogems
 		public function revive():void
 		{
 			this.alpha = 1.0;
-			this.gemType = randomNumber(0, 3);
 			this.marked = false;
+			this.randomize();
 		}
 		
 		public function Gem()
@@ -47,7 +50,7 @@ package com.autogems
 			
 			this.alpha = 0;
 			
-			tween = new Tween(this, 0.3, Transitions.EASE_IN);
+			tween = new Tween(this, DISAPPEAR_DELAY, Transitions.EASE_IN);
 			tween.fadeTo(1);
 			Starling.juggler.add(tween);
 			
@@ -67,7 +70,7 @@ package com.autogems
 		
 		public function moveTo(x:Number, y:Number):void
 		{
-			tween.reset(this, 0.2, Transitions.EASE_IN);
+			tween.reset(this, MOVE_DELAY, Transitions.EASE_IN);
 			tween.moveTo(x, y);
 			tween.fadeTo(1);
 			Starling.juggler.add(tween);
@@ -75,7 +78,7 @@ package com.autogems
 		
 		public function disappear():Gem
 		{
-			tween.reset(this, 0.4, Transitions.EASE_OUT);
+			tween.reset(this, DISAPPEAR_DELAY, Transitions.EASE_OUT);
 			tween.fadeTo(0);
 			Starling.juggler.add(tween);
 			this.marked = true;
@@ -131,6 +134,21 @@ package com.autogems
 			_col = value;
 		}
 		
+		public function cycle():void
+		{
+			if (this.gemType == 2 || this.gemType == 3) 
+				this.gemType = 0;
+			else 
+				this.gemType++;
+		}
 		
+		public function randomize():void
+		{
+			//1 in 16 chance for the wild card gem
+			this.gemType = randomNumber(0, 3);
+			
+			if (this.gemType == 3)
+				this.gemType = randomNumber(0, 3);
+		}
 	}
 }

@@ -63,6 +63,61 @@ package com.autogems
 					addChild (g);
 				}
 			}
+			
+			//until a no match level is made successfully
+			while (!makeLevelHaveNoMatch());
+		}
+		
+		private function makeLevelHaveNoMatch():Boolean
+		{
+			//assign a random gem to the current position
+			
+			//if there are 2 gems to the left, check horizontal match with left 2 gems
+			//if there are 2 gems in the top, check vertical match with 2 gems in the bottom
+			
+			//if no match, move to next gem, else do it again
+			
+			for (var row:int = AutoGemsGame.MAX_ROWS -1 ; row > -1; row--)
+			{
+				for (var col:int = AutoGemsGame.MAX_COLS- 1; col > -1; col--)
+				{
+					var g:Gem = getGemAtRowCol(row, col);
+					
+					var match:Boolean = true;
+					
+					var n:int = 0;
+					
+					while (match && n < 100)
+					{	
+						if (n == 0) 
+							g.randomize();
+						else 
+							g.cycle();
+						
+						match = false;
+						
+						//search for horizontal match at point if it has three more elements on the right
+						if (col < AutoGemsGame.MAX_COLS - 2)
+							if (checkTripletAtPoint(row, col, true, false)) match = true;
+						
+						//search for vertical match at point if it has three more elements on the bottom
+						if (row < AutoGemsGame.MAX_ROWS - 2)
+							if (checkTripletAtPoint(row, col, false, false)) match = true;
+						
+						n++;
+						
+						if (n == 100)
+						{
+							trace ("1000 !!! row : " + row + " , col : " + col);
+							return false;
+						}
+					}
+					
+					//trace ("row : " + row + " , col : " + col + " has gem type " + g.gemType);
+				}
+			}
+			
+			return true;
 		}
 		
 		private function gemTouched(e:starling.events.Event):void
@@ -96,6 +151,111 @@ package com.autogems
 			return	(allgems[col + row*AutoGemsGame.MAX_COLS]) as Gem;
 		}
 		
+		private function hasAnyMatch():Boolean
+		{
+			for (var row:int = 0; row < AutoGemsGame.MAX_ROWS; row++)
+			{
+				for (var col:int = 0; col < AutoGemsGame.MAX_COLS; col++)
+				{
+					//search for horizontal match at point if it has three more elements on the right
+					if (col < AutoGemsGame.MAX_COLS - 2)
+						if (checkTripletAtPoint(row, col, true, false)) 
+							return true;
+					
+					//search for vertical match at point if it has three more elements on the bottom
+					if (row < AutoGemsGame.MAX_ROWS - 2)
+						if (checkTripletAtPoint(row, col, false, false)) 
+							return true;
+				}
+			}
+			
+			return false;
+		}
+
+		private function swapAndSearch():void
+		{
+			var matchFound:Boolean = false;
+			
+			//loop and swap until match found, 
+			outerLoop: for (var row:int = 0; row < AutoGemsGame.MAX_ROWS; row++)
+			{
+				for (var col:int = 0; col < AutoGemsGame.MAX_COLS; col++)
+				{
+					//if hori possible do it and check
+					//if not, reverse
+					var currentGem:Gem, nextGem:Gem;
+					
+					//horizontal swap check
+					if ((col < AutoGemsGame.MAX_COLS - 1))
+					{
+						currentGem = getGemAtRowCol(row, col);
+						nextGem = getGemAtRowCol(row, col + 1);
+						
+						//swap non visually
+						putGemAtRowCol(currentGem, row, col + 1);
+						putGemAtRowCol(nextGem, row, col);
+						
+						if (hasAnyMatch())
+						{
+							//move the gems visually
+							moveGemToLocation(currentGem, row, col + 1);
+							moveGemToLocation(nextGem, row, col);
+							
+							//set flag to say to do the usual game
+							matchFound = true;
+							//break loops
+							break outerLoop;
+						}
+						else
+						{
+							//put them back in same place non-visually
+							putGemAtRowCol(currentGem, row, col);
+							putGemAtRowCol(nextGem, row, col + 1);
+						}
+					}
+					
+					//vertical swap check
+					if ((row < AutoGemsGame.MAX_ROWS - 1))
+					{
+						currentGem = getGemAtRowCol(row, col);
+						nextGem = getGemAtRowCol(row + 1, col);
+						
+						//swap non visually
+						putGemAtRowCol(currentGem, row + 1, col);
+						putGemAtRowCol(nextGem, row, col);
+
+						if (hasAnyMatch())
+						{
+							//move the gems visually
+							moveGemToLocation(currentGem, row + 1, col);
+							moveGemToLocation(nextGem, row, col);
+							
+							//set flag to say to do the usual game
+							matchFound = true;
+							//break loops
+							break outerLoop;
+						}
+						else
+						{
+							//put them back in same place non-visually
+							putGemAtRowCol(currentGem, row, col);
+							putGemAtRowCol(nextGem, row + 1, col);
+						}
+					}
+				}
+			}
+			
+			//when found swap visually and execute the usual game
+			if (matchFound)
+				Starling.juggler.delayCall(searchForTriplets, 1.0);
+			//if not found stop game
+			else
+			{
+				this.dispatchEventWith(GemBoard.NO_MATCH);
+				running = false;
+			}
+		}
+		
 		private function searchForTriplets():void
 		{
 			if (!running) return;
@@ -104,29 +264,36 @@ package com.autogems
 			
 			//loop through every element, in each row, length - 2 elements should be checked for horizontal match only vertical
 			//in the each column, length - 2 elements should not be checked for vertical match only horizontal
-			for (var row:int = 0; row < AutoGemsGame.MAX_ROWS; row++)
+			outerLoop: for (var row:int = 0; row < AutoGemsGame.MAX_ROWS; row++)
 			{
 				for (var col:int = 0; col < AutoGemsGame.MAX_COLS; col++)
 				{
 					//search for horizontal match at point if it has three more elements on the right
 					if (col < AutoGemsGame.MAX_COLS - 2)
-						if (checkTripletAtPoint(row, col)) anyMatch = true;
+						if (checkTripletAtPoint(row, col))
+						{
+							anyMatch = true;
+							break outerLoop;
+						}
 					
 					//search for vertical match at point if it has three more elements on the bottom
 					if (row < AutoGemsGame.MAX_ROWS - 2)
-						if (checkTripletAtPoint(row, col, false)) anyMatch = true;
+						if (checkTripletAtPoint(row, col, false))
+						{
+							anyMatch = true;
+							break outerLoop;
+						}
 				}
 			}
 
 			if (anyMatch)
 			{
-				gemsFillGaps();
-				Starling.juggler.delayCall(dropNewGems, 0.5);
+				Starling.juggler.delayCall(gemsFillGaps, 1.0);
+				Starling.juggler.delayCall(dropNewGems, 1.5);
 			}
 			else
 			{
-				this.dispatchEventWith(GemBoard.NO_MATCH);
-				running = false;
+				Starling.juggler.delayCall(swapAndSearch, 0.5);
 			}
 		}
 		
@@ -176,7 +343,7 @@ package com.autogems
 				}
 			}
 			
-			Starling.juggler.delayCall(searchForTriplets, 0.5);
+			Starling.juggler.delayCall(searchForTriplets, 1.0);
 		}
 		
 		private function gemsFillGaps():void
@@ -218,7 +385,7 @@ package com.autogems
 			}
 		}
 		
-		private function checkTripletAtPoint(row:int, col:int, horizontal:Boolean = true):Boolean
+		private function checkTripletAtPoint(row:int, col:int, horizontal:Boolean = true, shouldDisappear:Boolean = true):Boolean
 		{
 			var colInc:int = horizontal? 1:0; 
 			var rowInc:int = horizontal? 0:1;
@@ -243,7 +410,7 @@ package com.autogems
 					matched = false;
 			}
 			
-			if (matched)
+			if (shouldDisappear && matched)
 			{
 				//mark for removal and do the rest
 				getGemAtRowCol(row, col).disappear();
@@ -263,7 +430,7 @@ package com.autogems
 		public function start():void
 		{
 			running = true;
-			Starling.juggler.delayCall(searchForTriplets, 0.2);
+			Starling.juggler.delayCall(swapAndSearch, 0.2);
 		}
 		
 		public function stop():void
