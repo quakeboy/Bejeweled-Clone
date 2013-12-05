@@ -174,6 +174,8 @@ package com.autogems
 
 		private function swapAndSearch():void
 		{
+			if (!running) return;
+			
 			var matchFound:Boolean = false;
 			
 			//loop and swap until match found, 
@@ -257,9 +259,7 @@ package com.autogems
 		}
 		
 		private function searchForTriplets():void
-		{
-			if (!running) return;
-			
+		{	
 			var anyMatch:Boolean = false;
 			
 			//loop through every element, in each row, length - 2 elements should be checked for horizontal match only vertical
