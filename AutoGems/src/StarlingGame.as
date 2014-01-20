@@ -34,15 +34,15 @@ package
 				game.getAssetMgr().getTexture("stop_btn_idle"),"",
 				game.getAssetMgr().getTexture("stop_btn_active"));
 			
-			startBtn.x = 340;
-			startBtn.y = 150;
+			startBtn.x = 270;
+			startBtn.y = 550;
 			startBtn.addEventListener(Event.TRIGGERED, btnPressed);
-			stopBtn.x = 340;
-			stopBtn.y = 220;
+			stopBtn.x = 440;
+			stopBtn.y = 550;
 			stopBtn.addEventListener(Event.TRIGGERED, btnPressed);
 			
-			addChild(startBtn);
-			addChild(stopBtn);
+			//addChild(startBtn);
+			//addChild(stopBtn);
 			
 			stopBtn.enabled = false;
 		}

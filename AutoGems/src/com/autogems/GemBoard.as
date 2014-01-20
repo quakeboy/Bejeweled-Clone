@@ -1,20 +1,18 @@
 package com.autogems
 {
-	import flash.events.Event;
 	import flash.geom.Point;
 	
 	import starling.core.Starling;
 	import starling.display.Sprite;
 	import starling.events.Event;
-	import starling.events.TouchEvent;
 
 	public class GemBoard extends Sprite
 	{
 		public static const X_OFFSET:Number = 35;
-		public static const Y_OFFSET:Number = 150;
+		public static const Y_OFFSET:Number = 35;
 		
-		public static const GEM_WIDTH:Number = 54
-		public static const GEM_HEIGHT:Number = 54;
+		public static const GEM_WIDTH:Number = 60
+		public static const GEM_HEIGHT:Number = 60;
 		
 		private var allgems:Vector.<Gem>;
 		private var gempool:GemPool;
@@ -54,6 +52,8 @@ package com.autogems
 				{
 					var g:Gem = gempool.getGem();
 					g.addEventListener(Gem.GEM_TOUCHED, gemTouched);
+					g.addEventListener(Gem.GEM_SWIPED, gemSwiped);
+					g.addEventListener(Gem.GEM_MOVED, gemMoved);
 					
 					putGemAtRowCol(g, i, j);
 					
@@ -65,7 +65,10 @@ package com.autogems
 			}
 			
 			//until a no match level is made successfully
-			while (!makeLevelHaveNoMatch());
+			var result:Boolean = false;
+			
+			while (!result)
+				result = makeLevelHaveNoMatch();
 		}
 		
 		private function makeLevelHaveNoMatch():Boolean
@@ -120,16 +123,45 @@ package com.autogems
 			return true;
 		}
 		
+		private function gemMoved(e:Event):void
+		{
+			searchForTriplets();
+		}
+		
+		private function gemSwiped(e:Event):void
+		{
+			var dir:Point = e.data as Point;
+			
+			var fromGem:Gem = e.target as Gem;
+			var toGem:Gem = getGemAtRowCol(fromGem.row + dir.y, fromGem.col + dir.x);
+			
+			if (toGem)
+			{
+				//do the swipe and run the check once after the swipe animation is complete..
+				//trace ("Gem at " + (e.target as Gem).row + "," + (e.target as Gem).col + " has been swiped " + dir);
+				moveGemToLocation(fromGem, toGem.row, toGem.col);
+				moveGemToLocation(toGem, fromGem.row, fromGem.col, true);
+				
+				dir.x = fromGem.col; dir.y = fromGem.row; //reusing dir instead of another local var
+				
+				putGemAtRowCol(fromGem, toGem.row, toGem.col);
+				putGemAtRowCol(toGem, dir.y, dir.x);				
+			}
+		}
+		
 		private function gemTouched(e:starling.events.Event):void
 		{
-			if (running) return;
 			
-			if (clicksLeft > 0)
-			{
-				var g:Gem = e.target as Gem;
-				g.gemType = 3;
-				clicksLeft--;
-			}
+//			if (running) return;
+//			
+//			if (clicksLeft > 0)
+//			{
+//				var g:Gem = e.target as Gem;
+//				g.gemType = 3;
+//				clicksLeft--;
+//			}
+			
+			
 		}
 		
 		private function putGemAtRowCol(g:Gem, row:int, col:int, fromrow:int = -1, fromcol:int = -1):void
@@ -148,7 +180,11 @@ package com.autogems
 		
 		private function getGemAtRowCol(row:int, col:int):Gem
 		{
-			return	(allgems[col + row*AutoGemsGame.MAX_COLS]) as Gem;
+			var idx:int = col + row*AutoGemsGame.MAX_COLS;
+			
+			if (row < 0 || col < 0 || row > AutoGemsGame.MAX_ROWS - 1 || col > AutoGemsGame.MAX_COLS - 1) return null;
+			
+			return	(allgems[idx]) as Gem;
 		}
 		
 		private function hasAnyMatch():Boolean
@@ -258,7 +294,7 @@ package com.autogems
 			}
 		}
 		
-		private function searchForTriplets():void
+		private function searchForTriplets(autorun:Boolean = false):void
 		{	
 			var anyMatch:Boolean = false;
 			
@@ -271,37 +307,32 @@ package com.autogems
 					//search for horizontal match at point if it has three more elements on the right
 					if (col < AutoGemsGame.MAX_COLS - 2)
 						if (checkTripletAtPoint(row, col))
-						{
 							anyMatch = true;
-							break outerLoop;
-						}
 					
 					//search for vertical match at point if it has three more elements on the bottom
 					if (row < AutoGemsGame.MAX_ROWS - 2)
 						if (checkTripletAtPoint(row, col, false))
-						{
 							anyMatch = true;
-							break outerLoop;
-						}
 				}
 			}
 
 			if (anyMatch)
 			{
-				Starling.juggler.delayCall(gemsFillGaps, 1.0);
+				Starling.juggler.delayCall(gemsFillGaps, 0.8);
 				Starling.juggler.delayCall(dropNewGems, 1.5);
 			}
 			else
 			{
-				Starling.juggler.delayCall(swapAndSearch, 0.5);
+				if (autorun)
+					Starling.juggler.delayCall(swapAndSearch, 0.5);
 			}
 		}
 		
-		private function moveGemToLocation(g:Gem, row:int, col:int):void
+		private function moveGemToLocation(g:Gem, row:int, col:int, userInited:Boolean = false):void
 		{
 			g.moveTo(
 				X_OFFSET + col * GEM_WIDTH, 
-				Y_OFFSET + row * GEM_HEIGHT);
+				Y_OFFSET + row * GEM_HEIGHT, userInited);
 		}
 		
 		private function locationForRowCol(row:int, col:int):Point
@@ -393,22 +424,11 @@ package com.autogems
 			var firstType:int = getGemAtRowCol(row, col).gemType;
 			var matched:Boolean = true;
 			
-			//handling if the first gemType was a wildcard already pending
-			if (firstType == 3)
-				firstType = getGemAtRowCol(row + rowInc, col + colInc).gemType;
-			else
-			{
-				if (!((getGemAtRowCol(row + rowInc, col + colInc).gemType == firstType) ||
-					(getGemAtRowCol(row + rowInc, col + colInc).gemType == 3)))
-					matched = false;
-			}
-
-			if (firstType != 3)
-			{
-				if (!(getGemAtRowCol(row + (rowInc<<1), col + (colInc<<1)).gemType == firstType ||
-					getGemAtRowCol(row + (rowInc<<1), col + (colInc<<1)).gemType == 3))
-					matched = false;
-			}
+			if (!(getGemAtRowCol(row + rowInc, col + colInc).gemType == firstType))
+				matched = false;
+			
+			if (!(getGemAtRowCol(row + (rowInc<<1), col + (colInc<<1)).gemType == firstType))
+				matched = false;
 			
 			if (shouldDisappear && matched)
 			{
@@ -423,14 +443,14 @@ package com.autogems
 		
 		private function removeGemFromRowCol(row:int, col:int):void
 		{
-			gempool.addGem(getGemAtRowCol(row, col).disappear());
+			gempool.addGem(getGemAtRowCol(row, col));
 			putGemAtRowCol(null, row, col);
 		}
 		
 		public function start():void
 		{
 			running = true;
-			Starling.juggler.delayCall(swapAndSearch, 0.2);
+			Starling.juggler.delayCall(searchForTriplets, 0.2, false);
 		}
 		
 		public function stop():void

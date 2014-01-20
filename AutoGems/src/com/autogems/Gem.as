@@ -1,5 +1,7 @@
 package com.autogems
 {
+	import flash.geom.Point;
+	
 	import starling.animation.Transitions;
 	import starling.animation.Tween;
 	import starling.core.Starling;
@@ -15,11 +17,16 @@ package com.autogems
 		private var img:Image;
 		private var gemTextures:Array;
 		private var tween:Tween;
+		private var tween1:Tween;
 		
 		public static const GEM_TOUCHED:String = "GemTouched";
+		public static const GEM_SWIPED:String = "GemSwiped";
+		public static const GEM_MOVED:String = "GemMoved";
 		
 		public static const DISAPPEAR_DELAY:Number = 0.5;
-		public static const MOVE_DELAY:Number = 0.5;
+		public static const MOVE_DELAY:Number = 0.2;
+		
+		private var holder:Sprite = new Sprite();
 		
 		private function randomNumber(min:Number, max:Number):Number 
 		{
@@ -28,9 +35,10 @@ package com.autogems
 		
 		public function revive():void
 		{
-			this.alpha = 1.0;
+			this.alpha = holder.alpha = 1.0;
 			this.marked = false;
 			this.randomize();
+			this.scaleX = this.scaleY = this.holder.scaleX = this.holder.scaleY = 1;
 		}
 		
 		public function Gem()
@@ -43,10 +51,18 @@ package com.autogems
 				game.getAssetMgr().getTexture("gem1"),
 				game.getAssetMgr().getTexture("gem2"),
 				game.getAssetMgr().getTexture("gem3"),
-				game.getAssetMgr().getTexture("gem4"));
+				game.getAssetMgr().getTexture("gem4"),
+				game.getAssetMgr().getTexture("gem5"),
+				game.getAssetMgr().getTexture("gem6"));
 			
+			addChild(holder);
+				
 			img = new Image(gemTextures[0]);
-			addChild(img);
+			holder.addChild(img);
+			img.x = -img.width/2;
+			img.y = -img.height/2;
+			holder.x = img.width/2;
+			holder.y = img.height/2;
 			
 			this.alpha = 0;
 			
@@ -54,32 +70,80 @@ package com.autogems
 			tween.fadeTo(1);
 			Starling.juggler.add(tween);
 			
+			tween1 = new Tween(this, DISAPPEAR_DELAY, Transitions.EASE_OUT);
+			
+			
 			this.addEventListener(TouchEvent.TOUCH, onTouch);
 			
 			//init gem to random type and set correct texture
-			this.gemType = randomNumber(0, 3);
+			this.gemType = randomNumber(0, 5);
+			if (this.gemType == 6) trace ("fuck");
+
 		}
+		
+		private var lastTouchX:Number, lastTouchY:Number;
+		private const delta:int = 40;
+		private var direction:Point = new Point();
+		private var swiped:Boolean = false;
 		
 		public function onTouch(e:TouchEvent):void
 		{
 			var touch:Touch = e.getTouch(stage);
-
+			
 			if (touch && touch.phase == TouchPhase.BEGAN)
+			{
+				swiped = false;
+				lastTouchX = touch.globalX;
+				lastTouchY = touch.globalY;
+				
 				this.dispatchEventWith(GEM_TOUCHED);
+			}
+			else if (!swiped && touch && touch.phase == TouchPhase.MOVED)
+			{
+				var dX:Number = touch.globalX - lastTouchX; 
+				var dY:Number = touch.globalY - lastTouchY;
+				
+				//now check if a certain delta has been crossed on X or Y axis
+				if (Math.abs(dX) > delta)
+				{
+					this.dispatchEventWith(GEM_SWIPED, false, new Point( (dX>0?1:-1), 0));
+					swiped = true;
+				}
+				else if (Math.abs(dY) > delta)
+				{
+					this.dispatchEventWith(GEM_SWIPED, false, new Point(0, (dY>0?1:-1)));
+					swiped = true;
+				}
+				
+				
+			}
 		}
 		
-		public function moveTo(x:Number, y:Number):void
+		public function moveTo(x:Number, y:Number, needCallback:Boolean = false):void
 		{
-			tween.reset(this, MOVE_DELAY, Transitions.EASE_IN);
+			tween = new Tween(this, MOVE_DELAY, Transitions.EASE_IN);
 			tween.moveTo(x, y);
 			tween.fadeTo(1);
+			if (needCallback) tween.onComplete = animationComplete;
 			Starling.juggler.add(tween);
+		}
+		
+		private function animationComplete():void
+		{
+			this.dispatchEventWith(GEM_MOVED);
 		}
 		
 		public function disappear():Gem
 		{
-			tween.reset(this, DISAPPEAR_DELAY, Transitions.EASE_OUT);
-			tween.fadeTo(0);
+			//first grow and then shrink + fade
+			tween = new Tween(holder, DISAPPEAR_DELAY, Transitions.EASE_IN);
+			tween.scaleTo(1.1);
+			
+			tween1 = new Tween(holder, DISAPPEAR_DELAY, Transitions.EASE_OUT);
+			tween1.scaleTo(1);
+			tween1.fadeTo(0);
+			tween.nextTween = tween1;
+			
 			Starling.juggler.add(tween);
 			this.marked = true;
 			
@@ -136,7 +200,7 @@ package com.autogems
 		
 		public function cycle():void
 		{
-			if (this.gemType == 2 || this.gemType == 3) 
+			if (this.gemType == 5) 
 				this.gemType = 0;
 			else 
 				this.gemType++;
@@ -145,10 +209,8 @@ package com.autogems
 		public function randomize():void
 		{
 			//1 in 16 chance for the wild card gem
-			this.gemType = randomNumber(0, 3);
-			
-			if (this.gemType == 3)
-				this.gemType = randomNumber(0, 3);
+			this.gemType = randomNumber(0, 5);		
+			if (this.gemType == 6) trace ("fuck");
 		}
 	}
 }

@@ -5,7 +5,7 @@ package
 	
 	import starling.core.Starling;
 	
-	[SWF(width="640", height="480", frameRate="60", backgroundColor="#000000")]
+	[SWF(width="640", height="640", frameRate="60", backgroundColor="#DDDDDD")]
 	public class AutoGems extends Sprite
 	{
 		public function AutoGems()

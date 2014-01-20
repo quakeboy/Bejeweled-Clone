@@ -18,7 +18,12 @@ package
 		[Embed (source="../res/4.png" )]
 		public static const Gem4:Class;		
 
-		
+		[Embed (source="../res/5.png" )]
+		public static const Gem5:Class;		
+
+		[Embed (source="../res/6.png" )]
+		public static const Gem6:Class;		
+
 		[Embed (source="../res/bg.png" )]
 		public static const bg:Class;		
 		
