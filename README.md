@@ -7,9 +7,9 @@ Framework : Starling<br />
 Language : Actionscript 3<br />
 IDE : Flash Builder 4.6<br />
 
-===== Play the game here =====
+<!-- ===== Play the game here =====
 
-https://dl.dropboxusercontent.com/u/1389278/Assignment/bin-debug/AutoGems.html
+https://dl.dropboxusercontent.com/u/1389278/Assignment/bin-debug/AutoGems.html -->
 
 <br />
 
